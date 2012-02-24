@@ -1,0 +1,214 @@
+#################################################################################
+# Copyright (C) 2011, 2012 - Mariano Spadaccini    mariano@marianospadaccini.it #
+#                                                                               #
+# This file is part of pi                                                       #
+#                                                                               #
+#  pi is free software; you can redistribute it and/or modify                   #
+#  it under the terms of the GNU General Public License as published by         #
+#  the Free Software Foundation; either version 2 of the License, or            #
+#  (at your option) any later version.                                          #
+#                                                                               #
+#  pi is distributed in the hope that it will be useful,                        #
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of               #
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                #
+#  GNU General Public License for more details.                                 #
+#                                                                               #
+#  You should have received a copy of the GNU General Public License            #
+#  along with Foobar; if not, write to the Free Software                        #
+#  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA   #
+#################################################################################
+
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+use feature qw(say);
+
+use Math::BigFloat;
+use IO::Socket;
+use Log::Log4perl;
+use DateTime;
+use Storable;
+use bigint;
+
+# management signal
+#$SIG{INT} = \&info;
+$SIG{INT} = \&quit;
+$SIG{QUIT} = \&quit;
+$SIG{TRAP} = \&setDebug;
+$SIG{USR1} = \&addSleep;
+$SIG{USR2} = \&downSleep;
+$SIG{TERM} = \&quit;
+
+# prototype
+sub openClientSocket($$);
+sub add($);
+sub info();
+sub quit();
+sub setDebug();
+sub addSleep();
+sub downSleep();
+sub myDie($);
+sub timeout();
+
+# set default
+our $debug = 1;
+my $onlyOneStep = 0;
+our $sleep = 0;
+
+# socket
+my $port = 4431;
+my $serverHost = '10.0.72.11';
+$serverHost = 'localhost';
+my $timeout = 3600;
+
+
+Log::Log4perl::init_and_watch('inc/log_client.conf',10);
+our $log = Log::Log4perl::get_logger('Log');
+
+$| = 1;
+while (1) {
+    my $dt_start = DateTime->now();
+    $log->trace('Try to open client socket...');
+    my $socket = openClientSocket( $serverHost, $port );
+    eval {
+	local $SIG{ALRM} = \&timed_out;
+	alarm $timeout;
+
+	$socket->autoflush(1);
+	my $localPort = $socket->sockport();
+	$log->debug('Socket on port ' . $localPort);
+	$log->trace('Ask new value for $i...');
+	say $socket 'GET (new $i value)';
+	my $i = <$socket>;
+	myDie('do not get any value') unless defined($i);
+	chomp($i);
+	say "GET \$i = ", $i if $debug;
+	$log->trace('GET $i = '. $i);
+	say $socket 'BYE';
+	$log->trace('BYE');
+	close($socket);
+
+#exit 0; # only for server debug
+
+	# increment pi
+	my $d_pi = add( $i );
+	my $fh = "data/$i.s";
+	store $d_pi,$fh;
+
+	$socket = openClientSocket( $serverHost, $port );
+
+	$socket->autoflush(1);
+	$localPort = $socket->sockport();
+	$log->debug('Socket on port ' . $localPort);
+	$log->trace('Put value for increment... '.$d_pi);
+	say $socket 'PUT (new d$pi value) for '.$i;
+	my $dt_finish = DateTime->now();
+	my $d = $dt_finish - $dt_start;
+	my $duration = sprintf( "%02s:%02s:%02s,", $d->hours, $d->minutes,
+		$d->seconds) . $d->nanoseconds;
+	$log->trace('BYE in '.$duration.'seconds');
+	say $socket 'BYE';
+	close($socket);
+	say 'BYE in '.$duration.' seconds' if $debug;
+	alarm(0);
+    };
+    if ( $@ ) {
+	if ( $@ =~ /GOT TIRED OF WAITING/ ) {
+	    $log->error( 'DROP session');
+	} else {
+	    myDie($@);
+	}
+    } else {
+	$log->debug( 'Completed session' );
+    }
+
+    last if $onlyOneStep;
+    sleep $sleep;
+}
+
+exit 0;
+
+sub openClientSocket($$) {
+    my ($serverHost, $port) = @_;
+    my $socket = new IO::Socket::INET(
+			PeerAddr => $serverHost,
+			PeerPort => $port,
+			Proto => 'tcp',
+	) or myDie("Couldn't be a tcp server on port $port: $@");
+    return $socket;
+}
+
+sub add($) {
+    # Fabrice Bellard's algorithm
+    my $n = shift;
+    $n = Math::BigFloat->new( $n );
+    my $add = Math::BigFloat->new('0');
+
+    #    \pi=\frac{1}{2^6}\sum_{n=0}^\infty \frac{(-1)^n}{2^{10n}} \left (-\frac{2^5}{4n+1}-\frac{1}{4n+3}+\frac{2^8}{10n+1}-\frac{2^6}{10n+3}-\frac{2^2}{10n+5}-\frac{2^2}{10n+7}+\frac{1}{10n+9}\right )\! 
+    # $add += $one_to_two_raised_6 * (-1)**$n / 2**( 10*$n ) *
+    
+    $add +=
+		2**($n+1)
+		*
+		factorial($n)**2;
+    $add = $add->fdiv( factorial( 2*$n+1 ) );
+    return $add;
+}
+
+sub info() {
+    $log->info("I have received signal (kill -2)");
+    say "\n", 'debug = ', $debug;
+    say 'sleep = ', $sleep;
+    say 'SIGQUIT:  kill -3 ', $$, ' (quit)';
+    say 'SIGTRAP:  kill -5 ', $$, ' (set debug)';
+    say 'SIGUSR1:  kill -10 ', $$, ' (sleep++)';
+    say 'SIGUSR2:  kill -12 ', $$, ' (sleep--)';
+}
+
+sub quit() {
+    say "\nQuit..." if $debug;
+    $log->info("I have received signal (kill -3)");
+    exit 0;
+}
+
+sub setDebug() {
+    $log->info("I have received signal (kill -5)");
+    $debug = $debug ? 0 : 1;
+    say 'turn on debug mede' if $debug;
+}
+
+sub addSleep() {
+    $log->info("I have received signal (kill -10)");
+    $sleep += 1;
+    say "\nnew sleep: ", $sleep if $debug;
+}
+
+sub downSleep() {
+    $log->info("I have received signal (kill -12)");
+    $sleep -= 1 unless $sleep == 0;
+    say "\nnew sleep: ", $sleep if $debug;
+}
+
+sub myDie($) {
+    my $msg = shift;
+    print $msg, "\n";
+
+    my $log = Log::Log4perl::get_logger('Log');
+    $log->fatal($msg);
+    exit 1;
+}
+
+sub timed_out {
+    die 'GOT TIRED OF WAITING';
+}
+
+sub factorial {
+    my $n = shift ;
+    if ( $n > 1 ) {
+	$n *= factorial( $n - 1);
+    } else {
+	return 1;
+    }
+    return $n;
+}

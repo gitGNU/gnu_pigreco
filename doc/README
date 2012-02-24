@@ -1,0 +1,71 @@
+This is README file file for my project 'pi'.
+
+===============================================
+ - Index -
+
+Chapter 0 - About pi
+	1 - Install
+	2 - Features
+	3 - Status -> develop
+Appendix A: Copyright
+Appendix B: Thanks...
+================================================
+
+
+----------------------------------------------
+Chapter 0 - 	About PI
+----------------------------------------------
+
+PI is a software designed to calculus pi.
+
+----------------------------------------------
+Chapter 1 - 	Install
+----------------------------------------------
+
+1.1 Required software
+Modern Perl compiler and sqlite version 3.x.x.
+1.1 Required packages
+A list of Perl packages used:
+    warnings
+    strict
+    IO::Socket
+    Proc::Daemon (no required if don't launched as daemon)
+    Math::BigFloat
+    Log::Log4perl
+    Data::Dumper (required only to debug)
+    Storable
+    DBI
+    DateTime
+	
+1.2 DB structure
+    Please watch the schema/ directory
+
+1.3 inc/log*.conf
+    In these files, you can change many configuration settings to log
+
+----------------------------------------------
+Chapter 2 - 	Features
+----------------------------------------------
+
+TO DO
+
+----------------------------------------------
+Chapter 3 - 	Status -> develop
+----------------------------------------------
+
+TO DO 
+
+================================================
+Appendix A:	Copyleft
+================================================
+Copyright Mariano Spadaccini - 2011, 2012
+This software is under GPL version 2.
+A full copy of GPL is in gpl.txt;
+it is also in http://www.gnu.org/copyleft/gpl.html
+and in copyright (or copyleft) subdirectory.
+
+--------------------------------------------------------
+Appendix C: 	Thanks...
+--------------------------------------------------------
+Thank you:
+- me :-)
