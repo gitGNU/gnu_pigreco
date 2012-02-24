@@ -44,12 +44,12 @@ unless ( defined($ARGV[0]) and grep(/^$ARGV[0]$/, qw/help info make_pi dump only
 
 if ($ARGV[0] eq 'help') {
     print "Please enter: perl make_pi.pl [info|make_pi|only_count|dump|clean]";
-    print "\n\thelp\t\twrite this instructions";
-    print "\n\tinfo\t\twrite a summary of pi and last calculated delta";
-    print "\n\tmake_pi\t\tcalculate new pi by adding the delta";
-    print "\n\tonly_count\tsimulate the calculus of new pi by adding the delta";
-    print "\n\tdump\t\twrite to text the pi and last delta";
-    print "\n\tclean\t\twrite the instructions to clean and re-init the calculus";
+    print "\n\thelp\t\twrites these instructions";
+    print "\n\tinfo\t\twrites a summary of pi and last calculated delta";
+    print "\n\tmake_pi\t\tcalculates new pi by adding delta";
+    print "\n\tonly_count\tsimulates the calculation of new pi by adding delta";
+    print "\n\tdump\t\twrites to text the pi and last delta";
+    print "\n\tclean\t\twrites the instructions to clean and re-init the calculus";
     print "\n";
     exit 0;
 } elsif ($ARGV[0] eq 'clean') {
